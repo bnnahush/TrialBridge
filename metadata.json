@@ -1,0 +1,6 @@
+{
+  "name": "TrialBridge",
+  "description": "TrialBridge is a clinical trial feasibility and cohort explorer connecting clinical trials with FHIR patient directories using robust backend proxy querying.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
