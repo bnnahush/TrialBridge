@@ -33,7 +33,7 @@ interface OpenAIAnalysisResult {
 
 export const PatientTrialsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { setIsLoading, setError, setSuccess } = useApp();
+  const { setIsLoading, setError, setSuccess, addToast } = useApp();
 
   const [patient, setPatient] = useState<any>(null);
   const [activeConditions, setActiveConditions] = useState<string[]>([]);
@@ -103,6 +103,9 @@ export const PatientTrialsPage: React.FC = () => {
           .filter(Boolean);
         conditionNames = Array.from(new Set(displayNames));
         setActiveConditions(conditionNames);
+        if (conditionNames.length === 0) {
+          addToast("No conditions found — trial search may be broad.", "warning");
+        }
       } catch (err) {
         console.error("Failed to load conditions:", err);
       }
@@ -142,6 +145,8 @@ export const PatientTrialsPage: React.FC = () => {
       const condQuery = conditionNames.length > 0 
         ? conditionNames.slice(0, 3).join(" OR ") 
         : "diabetes OR hypertension"; // robust fallback so studies are always found
+
+      addToast("Fetching trials from ClinicalTrials.gov…", "info");
 
       const ctGovUrl = `https://clinicaltrials.gov/api/v2/studies?format=json&pageSize=20&query.cond=${encodeURIComponent(condQuery)}&filter.overallStatus=RECRUITING`;
       
@@ -400,12 +405,32 @@ export const PatientTrialsPage: React.FC = () => {
     const radius = large ? 30 : 18;
     const strokeWidth = large ? 5 : 3.5;
     const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (score / 100) * circumference;
+    const [animatedScore, setAnimatedScore] = useState(0);
+
+    useEffect(() => {
+      let startTime: number | null = null;
+      const duration = 800; // 800ms duration
+      let animationFrameId: number;
+
+      const animate = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        setAnimatedScore(Math.floor(progress * score));
+        if (progress < 1) {
+          animationFrameId = requestAnimationFrame(animate);
+        }
+      };
+
+      animationFrameId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(animationFrameId);
+    }, [score]);
+
+    const strokeDashoffset = circumference - (animatedScore / 100) * circumference;
     const info = getScoreInfo(score);
     const center = size / 2;
 
     return (
-      <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <div className="relative flex items-center justify-center shrink-0 animate-fadeIn" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="transform -rotate-90">
           <circle
             cx={center}
@@ -419,7 +444,7 @@ export const PatientTrialsPage: React.FC = () => {
             cx={center}
             cy={center}
             r={radius}
-            className={`${info.strokeColor} transition-all duration-500 ease-out`}
+            className={`${info.strokeColor} transition-all duration-75`}
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}
@@ -429,7 +454,7 @@ export const PatientTrialsPage: React.FC = () => {
         </svg>
         <div className="absolute text-center flex flex-col items-center justify-center leading-none">
           <span className={`font-black font-mono text-slate-800 ${large ? "text-lg leading-none" : "text-[11px]"}`}>
-            {score}%
+            {animatedScore}%
           </span>
           {large && (
             <span className="text-[7px] text-slate-400 font-extrabold block mt-0.5 uppercase tracking-wider">
@@ -797,7 +822,7 @@ export const PatientTrialsPage: React.FC = () => {
                           <div className="flex items-center justify-between gap-2 bg-white/40 border border-slate-100 p-2.5 rounded-xl">
                             <div className="space-y-0.5">
                               <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide">AI Recommendation</span>
-                              <span className={`px-2 py-0.5 text-[9px] font-black rounded border block inline-block ${scoreInfo?.badgeColor}`}>
+                              <span className={`px-2 py-0.5 text-[9px] font-black rounded border block inline-block animate-badge-in ${scoreInfo?.badgeColor}`}>
                                 {scoreInfo?.badgeText}
                               </span>
                             </div>
@@ -900,7 +925,7 @@ export const PatientTrialsPage: React.FC = () => {
             {/* RHS Panel Frame with full mobile scroll support */}
             <div 
               id="print-analysis-content"
-              className="absolute inset-y-0 right-0 max-w-2xl w-full bg-white shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-in relative select-text"
+              className="absolute inset-y-0 right-0 w-full max-w-full md:max-w-2xl bg-white shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-in relative select-text"
             >
               
               <div className="p-6 md:p-8 space-y-6">

@@ -784,12 +784,12 @@ export const PatientDetailsPage: React.FC = () => {
               </div>
 
               {vitalsLoading ? (
-                <div id="vitals-loading-skeleton" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+                <div id="vitals-loading-skeleton" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
                   {[...Array(7)].map((_, i) => (
                     <div 
                       key={i} 
                       className={`bg-slate-50 border border-slate-150 rounded-xl p-4 h-36 flex flex-col justify-between ${
-                        i === 0 ? "sm:col-span-2 lg:col-span-2" : ""
+                        i === 0 ? "md:col-span-2 lg:col-span-2" : ""
                       }`}
                     >
                       <div className="space-y-2">
@@ -889,10 +889,10 @@ export const PatientDetailsPage: React.FC = () => {
                   ];
 
                   return (
-                    <div id="vitals-metric-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div id="vitals-metric-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       
                       {/* Blood Pressure Card */}
-                      <div id="vitals-card-bp" className={`bg-white border rounded-xl p-4 shadow-xs flex flex-col justify-between h-36 sm:col-span-2 lg:col-span-2 ${
+                      <div id="vitals-card-bp" className={`bg-white border rounded-xl p-4 shadow-xs flex flex-col justify-between h-36 md:col-span-2 lg:col-span-2 ${
                         !bpHasData ? "border-slate-150 bg-slate-50/30 opacity-70" : "border-slate-200"
                       }`}>
                         <div>

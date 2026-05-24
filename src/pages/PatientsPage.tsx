@@ -397,7 +397,8 @@ export const PatientsPage: React.FC = () => {
           /* State D: Render Standard active Patient table with customized styling */
           <>
             <div className="overflow-x-auto">
-              <table id="patient-catalog-table" className="w-full text-left border-collapse">
+              {/* Desktop Table View */}
+              <table id="patient-catalog-table" className="hidden md:table w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
                     
@@ -496,6 +497,67 @@ export const PatientsPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+
+              {/* Mobile Stacked Card List View */}
+              <div id="patient-catalog-cards" className="block md:hidden divide-y divide-slate-100">
+                {currentPagedPatients.map((p) => (
+                  <div key={p.id} id={`patient-card-${p.id}`} className="p-4 space-y-3 hover:bg-slate-50/30 transition">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-0.5">
+                        <span className="font-extrabold text-[#0F2B5B] text-xs block">
+                          {p.name}
+                        </span>
+                        <span className="font-mono text-[9px] text-slate-400 block select-all">
+                          ID: {p.id}
+                        </span>
+                      </div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                        p.gender.toLowerCase() === "female" ? "bg-purple-100/60 text-purple-700 border border-purple-150" :
+                        p.gender.toLowerCase() === "male" ? "bg-blue-100/60 text-blue-700 border border-blue-150" :
+                        "bg-slate-100 text-slate-600 border border-slate-150"
+                      }`}>
+                        {capitalizeGender(p.gender)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 bg-slate-50/50 border border-slate-150 rounded-xl p-3 text-[11px] text-slate-500">
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Birth Date</span>
+                        <span className="font-semibold text-slate-700">{formatDate(p.birthDate)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Age</span>
+                        <span className="font-mono font-bold text-slate-700">{p.age} y/o</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="inline-flex items-center gap-1 p-0.5 px-2 bg-emerald-50 text-emerald-700 border border-emerald-150 rounded text-[9px] font-extrabold uppercase">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        HIPAA Safe
+                      </span>
+                      <div className="flex gap-2">
+                        <Link
+                          id={`view-patient-mob-${p.id}`}
+                          to={`/patients/${p.id}`}
+                          className="px-3 py-1.5 border border-slate-200 hover:border-slate-350 bg-white text-[10px] font-extrabold tracking-wider uppercase rounded-lg text-slate-700 transition flex items-center gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View
+                        </Link>
+                        <Link
+                          id={`edit-patient-mob-${p.id}`}
+                          to={`/patients/${p.id}/edit`}
+                          className="px-3 py-1.5 border border-slate-200 hover:border-slate-350 bg-white text-[10px] font-extrabold tracking-wider uppercase rounded-lg text-slate-500 transition flex items-center gap-1"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Edit
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Pagination Controls Section */}
