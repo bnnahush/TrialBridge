@@ -2,6 +2,8 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import { GoogleGenAI, Type } from "@google/genai";
+import OpenAI from "openai";
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +35,214 @@ async function startServer() {
       fhirBaseUrl: process.env.FHIR_BASE_URL ? process.env.FHIR_BASE_URL.replace(/\/$/, "") : "https://hapi.fhir.org/baseR4",
       hasBearerToken: !!process.env.FHIR_BEARER_TOKEN,
     });
+  });
+
+  // POST route for AI-powered Clinical Trials Matching using Gemini
+  app.post("/api/gemini/analyze-trials", async (req, res) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({
+        error: "Gemini API Key is not configured in environment. Please add GEMINI_API_KEY under the Settings > Secrets panel."
+      });
+    }
+
+    const { patient, trials } = req.body;
+    if (!patient || !trials || !Array.isArray(trials) || trials.length === 0) {
+      return res.status(400).json({ error: "Missing patient demographic file or trials array" });
+    }
+
+    try {
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          }
+        }
+      });
+
+      const prompt = `
+You are an expert clinical trial feasibility matching system. Analyze the match eligibility of the following patient against active ClinicalTrials.gov studies.
+
+PATIENT CLINICAL DOSSIER:
+- Name: ${patient.name}
+- Age: ${patient.age}
+- Gender: ${patient.gender}
+- Active Conditions: ${JSON.stringify(patient.activeConditions || [])}
+
+CLINICAL TRIALS TO EVALUATE:
+${trials.map((t: any) => `
+---
+Trial ID (NCTID): ${t.nctId}
+Title: ${t.title}
+Phase: ${t.phase}
+Sponsor: ${t.sponsor}
+Summary: ${t.summary}
+Eligibility Criteria Raw Text: ${t.eligibilityCriteria}
+Gender Preference: ${t.sex || "All"}
+Minimum Age Constrain: ${t.minimumAge || "N/A"}
+Maximum Age Constrain: ${t.maximumAge || "N/A"}
+`).join("\n")}
+
+For each trial:
+1. Estimate a Match Score (0 - 100) based on how well the patient's criteria (age, gender, active diagnoses) correspond with the eligibility criteria, inclusion rules, and exclusion codes.
+2. Determine if overall likely "eligible" (boolean).
+3. Draft a precise, highly objective 2-3 sentence clinical justification (e.g. "Matches age and diagnosis requirements. However, exclusion parameters for ongoing acute therapies requires secondary verification.").
+4. List specific "matchedCriteria" (e.g., "Age (54) lies within range [18-65]", "Has index diagnosis: Type 2 Diabetes").
+5. List specific "unmatchedCriteria" (e.g., "Candidate lacks required historical complications", "Exclusion: ongoing insulin-pump usage").
+
+Provide a comprehensive high-level "overallSummary" of recommendations across the entire cohort.
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            required: ["overallSummary", "analyses"],
+            properties: {
+              overallSummary: {
+                type: Type.STRING,
+                description: "Executive high-level cohort matching overview for the provider, highlighting best options."
+              },
+              analyses: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  required: ["nctId", "score", "eligible", "justification", "matchedCriteria", "unmatchedCriteria"],
+                  properties: {
+                    nctId: { type: Type.STRING },
+                    score: { type: Type.INTEGER, description: "Match probability score 0 to 100" },
+                    eligible: { type: Type.BOOLEAN, description: "Whether the patient conforms overall to core requirements" },
+                    justification: { type: Type.STRING, description: "Clinical match rationale of 2-3 sentences" },
+                    matchedCriteria: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING }
+                    },
+                    unmatchedCriteria: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const extractedJsonText = response.text || "{}";
+      res.json(JSON.parse(extractedJsonText));
+    } catch (error: any) {
+      console.error("[Gemini Trial Bridge Exception]:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze trials under Gemini engine validation." });
+    }
+  });
+
+  // POST route for AI-powered clinical trials custom matching using OpenAI
+  app.post("/api/match-trials", async (req, res) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({
+        error: "OPENAI_API_KEY is not configured in environment. Please add OPENAI_API_KEY under the Settings > Secrets panel."
+      });
+    }
+
+    const { patient, trials } = req.body;
+    if (!patient || !trials || !Array.isArray(trials) || trials.length === 0) {
+      return res.status(400).json({ error: "Missing patient demographic file or trials array" });
+    }
+
+    // Set headers for streaming NDJSON to client
+    res.setHeader("Content-Type", "application/x-ndjson");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    try {
+      const openai = new OpenAI({ apiKey });
+
+      // Run analyses in parallel to minimize response latency
+      const analysisPromises = trials.map(async (trial) => {
+        try {
+          const minAge = trial.minimumAge || trial.minAge || "N/A";
+          const maxAge = trial.maximumAge || trial.maxAge || "N/A";
+          const sex = trial.sex || "All";
+          const eligibilityCriteria = trial.eligibilityCriteria || "No explicit criteria listed.";
+
+          const chatCompletion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: "You are a clinical trial eligibility analyst. Given a patient's clinical profile and a trial's eligibility criteria, analyze whether the patient may qualify. Return ONLY valid JSON with no markdown, no explanation outside the JSON."
+              },
+              {
+                role: "user",
+                content: `Patient profile: ${JSON.stringify(patient)}
+Trial eligibility criteria: ${eligibilityCriteria}
+Minimum age requirement: ${minAge}
+Maximum age requirement: ${maxAge}
+Sex requirement: ${sex}
+
+Return JSON: { "score": <0-100 integer>, "reasoning": "<2-3 sentence summary>", "met_criteria": ["<list of criteria the patient meets>"], "unmet_criteria": ["<list of criteria the patient does not meet or is unknown>"] }`
+              }
+            ],
+            response_format: { type: "json_object" }
+          });
+
+          const responseText = chatCompletion.choices?.[0]?.message?.content || "{}";
+          let parsed: any = {};
+          try {
+            let cleanText = responseText.trim();
+            if (cleanText.startsWith("```")) {
+              cleanText = cleanText.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+            }
+            parsed = JSON.parse(cleanText);
+          } catch (pErr) {
+            console.error(`Failed to parse json on trial ${trial.nctId}:`, responseText);
+            parsed = {
+              score: 50,
+              reasoning: "Failed to parse API analysis response. Please review eligibility manually.",
+              met_criteria: [],
+              unmet_criteria: []
+            };
+          }
+
+          const mappedAnalysis = {
+            nctId: trial.nctId,
+            score: typeof parsed.score === "number" ? parsed.score : 50,
+            reasoning: parsed.reasoning || "No explanation provided.",
+            inclusions: parsed.met_criteria || [],
+            exclusions: parsed.unmet_criteria || []
+          };
+
+          // Write chunk individually for real-time tracking
+          res.write(JSON.stringify({ status: "success", data: mappedAnalysis }) + "\n");
+          return mappedAnalysis;
+        } catch (trialErr: any) {
+          console.error(`Error analyzing trial ${trial.nctId} with OpenAI:`, trialErr);
+          const failBack = {
+            nctId: trial.nctId,
+            score: 0,
+            reasoning: `OpenAI error: ${trialErr.message || "Unknown error during study analysis"}`,
+            inclusions: [],
+            exclusions: ["System match failure - check OpenAI service availability"]
+          };
+          res.write(JSON.stringify({ status: "error", error: trialErr.message || "Failed trial analysis", nctId: trial.nctId, data: failBack }) + "\n");
+          return failBack;
+        }
+      });
+
+      await Promise.all(analysisPromises);
+      res.end();
+    } catch (globalErr: any) {
+      console.error("[Global OpenAI Route Error]:", globalErr);
+      // In case we haven't flushed headers yet, we can send standard error, but since we set x-ndjson, write it
+      res.write(JSON.stringify({ error: globalErr.message || "Global matching system exception" }) + "\n");
+      res.end();
+    }
   });
 
   // ALL /fhir-proxy/* route
