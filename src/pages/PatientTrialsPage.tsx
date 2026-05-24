@@ -203,6 +203,20 @@ export const PatientTrialsPage: React.FC = () => {
     loadPatientAndTrials();
   }, [id]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedTrialForDetail(null);
+      }
+    };
+    if (selectedTrialForDetail) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedTrialForDetail]);
+
   const toggleSummary = (nctId: string) => {
     setExpandedSummary(prev => ({ ...prev, [nctId]: !prev[nctId] }));
   };
@@ -381,38 +395,48 @@ export const PatientTrialsPage: React.FC = () => {
     }
   };
 
-  const ScoreDonut: React.FC<{ score: number }> = ({ score }) => {
-    const radius = 18;
+  const ScoreDonut: React.FC<{ score: number; large?: boolean }> = ({ score, large }) => {
+    const size = large ? 80 : 56;
+    const radius = large ? 30 : 18;
+    const strokeWidth = large ? 5 : 3.5;
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (score / 100) * circumference;
     const info = getScoreInfo(score);
+    const center = size / 2;
 
     return (
-      <div className="relative flex items-center justify-center w-14 h-14">
-        <svg className="w-14 h-14 transform -rotate-90">
+      <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="transform -rotate-90">
           <circle
-            cx="28"
-            cy="28"
+            cx={center}
+            cy={center}
             r={radius}
             className="stroke-slate-100"
-            strokeWidth="3.5"
+            strokeWidth={strokeWidth}
             fill="transparent"
           />
           <circle
-            cx="28"
-            cy="28"
+            cx={center}
+            cy={center}
             r={radius}
             className={`${info.strokeColor} transition-all duration-500 ease-out`}
-            strokeWidth="3.5"
+            strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
           />
         </svg>
-        <span className="absolute text-[11px] font-black font-mono text-slate-800">
-          {score}%
-        </span>
+        <div className="absolute text-center flex flex-col items-center justify-center leading-none">
+          <span className={`font-black font-mono text-slate-800 ${large ? "text-lg leading-none" : "text-[11px]"}`}>
+            {score}%
+          </span>
+          {large && (
+            <span className="text-[7px] text-slate-400 font-extrabold block mt-0.5 uppercase tracking-wider">
+              SCORE
+            </span>
+          )}
+        </div>
       </div>
     );
   };
@@ -548,69 +572,7 @@ export const PatientTrialsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Patient Clinical Dossier Snapshot Row */}
-      <div className="p-5 bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200/80 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
-        {/* Core demographic metadata */}
-        <div className="space-y-2">
-          <span className="text-slate-400 block font-bold text-[9px] uppercase tracking-wider">Patient demographics</span>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white border border-slate-200 rounded-xl shrink-0">
-              <User className="w-4 h-4 text-[#0F2B5B]" />
-            </div>
-            <div>
-              <span className="font-extrabold text-[#0F2B5B] block">
-                {patientName}
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500 block">
-                Age: {patientAge} | Sex: {patientGender.toUpperCase()}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Clinical Conditions catalog */}
-        <div className="space-y-2 border-t md:border-t-0 md:border-l border-slate-200/80 pt-3 md:pt-0 md:pl-5">
-          <span className="text-slate-400 block font-bold text-[9px] uppercase tracking-wider">Active diagnosed conditions</span>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white border border-slate-200 rounded-xl shrink-0">
-              <Tag className="w-4 h-4 text-[#0EA5A0]" />
-            </div>
-            <div className="flex flex-wrap gap-1 max-w-xs">
-              {activeConditions.length === 0 ? (
-                <span className="text-[10px] font-semibold text-slate-400 italic">None cataloged</span>
-              ) : (
-                activeConditions.map((cond, idx) => (
-                  <span key={idx} className="px-1.5 py-0.5 bg-sky-50 border border-sky-100 text-[#0F2B5B] rounded text-[9px] font-extrabold">
-                    {cond}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Active Treatments or Allergy identifiers */}
-        <div className="space-y-2 border-t md:border-t-0 md:border-l border-slate-200/80 pt-3 md:pt-0 md:pl-5">
-          <span className="text-slate-400 block font-bold text-[9px] uppercase tracking-wider">Medications & Allergies</span>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white border border-slate-200 rounded-xl shrink-0">
-              <Pill className="w-4 h-4 text-emerald-600 animate-pulse" />
-            </div>
-            <div className="space-y-1 font-semibold text-[10px] text-slate-600">
-              <div>
-                <strong className="text-slate-400 uppercase tracking-wide text-[8px]">Meds: </strong>
-                {medications.length === 0 ? "None" : medications.slice(0, 3).join(", ") + (medications.length > 3 ? "..." : "")}
-              </div>
-              <div>
-                <strong className="text-slate-400 uppercase tracking-wide text-[8px]">Allergies: </strong>
-                {allergies.length === 0 ? "NKDA" : allergies.slice(0, 3).join(", ") + (allergies.length > 3 ? "..." : "")}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Primary Screen Grid Block */}
+      {/* Sticky Dual-column Layout */}
       {fetchError ? (
         <div className="p-8 bg-rose-50 border border-rose-100 rounded-2xl text-rose-800 text-xs flex items-start gap-4 shadow-xs">
           <AlertCircle className="w-6 h-6 text-rose-500 shrink-0" />
@@ -627,158 +589,270 @@ export const PatientTrialsPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h2 className="text-base font-black text-[#0F2B5B] flex items-center gap-1.5">
-              <FileText className="w-4.5 h-4.5 text-slate-400" />
-              Recruiting Protocols
-              <span className="text-[10px] font-bold bg-[#0F2B5B]/5 text-[#0F2B5B] px-2 py-0.5 rounded-full">
-                {sortedTrials.length} found
-              </span>
-            </h2>
+          {/* Patient Context Card Sticky LHS Column (Stays visible during scroll) */}
+          <div className="lg:col-span-4 lg:sticky lg:top-6 lg:self-start space-y-4 print:hidden">
+            <div className="bg-white border border-slate-205/90 rounded-3xl p-6 shadow-xs border-slate-200/80 space-y-5">
+              
+              <div className="space-y-3">
+                <Link 
+                  to={`/patients/${id}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0EA5A0] hover:text-[#0F2B5B] transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  ← Back to Patient Profile
+                </Link>
+                
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase font-mono">
+                    Patient Profile Context
+                  </span>
+                  <h2 className="text-xl font-black text-[#0F2B5B] tracking-tight leading-tight select-text">
+                    {patientName}
+                  </h2>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span className="capitalize">{patientGender}</span>
+                    <span className="text-slate-300">•</span>
+                    <span>Age {patientAge}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conditions Chips (Teal) */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Active Conditions ({activeConditions.length})
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeConditions.length === 0 ? (
+                    <span className="text-[11px] text-slate-400 italic">No conditions recorded</span>
+                  ) : (
+                    activeConditions.map((cond, idx) => (
+                      <span 
+                        key={idx} 
+                        className="px-2.5 py-1 bg-teal-50 border border-teal-200/60 text-teal-800 rounded-lg text-[10px] font-bold inline-block"
+                      >
+                        {cond}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Medications Chips (Navy) */}
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Active Medications ({medications.length})
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {medications.length === 0 ? (
+                    <span className="text-[11px] text-slate-400 italic">No medications recorded</span>
+                  ) : (
+                    medications.map((med, idx) => (
+                      <span 
+                        key={idx} 
+                        className="px-2.5 py-1 bg-[#0F2B5B]/5 border border-[#0F2B5B]/15 text-[#0F2B5B] rounded-lg text-[10px] font-bold inline-block"
+                      >
+                        {med}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Allergies Chips (Red) */}
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Allergies & Intolerances ({allergies.length})
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {allergies.length === 0 ? (
+                    <span className="px-2.5 py-1 bg-slate-50 border border-slate-205 text-slate-550 rounded-lg text-[10px] font-bold inline-block select-none font-mono">
+                      NKDA
+                    </span>
+                  ) : (
+                    allergies.map((alg, idx) => (
+                      <span 
+                        key={idx} 
+                        className="px-2.5 py-1 bg-rose-50 border border-rose-200/60 text-rose-700 rounded-lg text-[10px] font-bold inline-block"
+                      >
+                        {alg}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* AI Agent Engine Diagnostics Advice Panel */}
+            <div className="p-5 bg-gradient-to-br from-[#0F2B5B]/5 to-[#0EA5A0]/5 border border-slate-200/70 rounded-2xl space-y-2">
+              <h4 className="text-[11px] font-extrabold text-[#0F2B5B] uppercase tracking-wide flex items-center gap-1.5">
+                <Brain className="w-3.5 h-3.5 text-[#0EA5A0]" />
+                Automated Match Diagnostic
+              </h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                This evaluator screens age exclusions, biological traits, and unstructured inclusion protocols using gpt-4o-mini clinical assessment guidelines dynamically.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedTrials.map((trial) => {
-              const hasAI = !!matchResults[trial.nctId];
-              const result = matchResults[trial.nctId];
-              const scoreInfo = hasAI ? getScoreInfo(result.score) : null;
-              const isExpanded = !!expandedSummary[trial.nctId];
+          {/* Available Recruiting Protocols Column (Right column) */}
+          <div className="lg:col-span-8 space-y-5">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 print:hidden">
+              <h2 className="text-base font-black text-[#0F2B5B] flex items-center gap-1.5">
+                <FileText className="w-4.5 h-4.5 text-slate-400" />
+                Recruiting Protocols Catalog
+                <span className="text-[10px] font-bold bg-[#0F2B5B]/5 text-[#0F2B5B] px-2 py-0.5 rounded-full font-mono">
+                  {sortedTrials.length} found
+                </span>
+              </h2>
+            </div>
 
-              return (
-                <div 
-                  key={trial.nctId}
-                  className={`border bg-white rounded-2xl flex flex-col justify-between overflow-hidden transition-all duration-300 ${
-                    hasAI 
-                      ? result.score >= 80 
-                        ? "border-emerald-300 shadow-md ring-2 ring-emerald-500/5 bg-slate-50/5 hover:-translate-y-0.5" 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {sortedTrials.map((trial) => {
+                const hasAI = !!matchResults[trial.nctId];
+                const result = matchResults[trial.nctId];
+                const scoreInfo = hasAI ? getScoreInfo(result.score) : null;
+                const isExpanded = !!expandedSummary[trial.nctId];
+
+                return (
+                  <div 
+                    key={trial.nctId}
+                    className={`border bg-white rounded-2xl flex flex-col justify-between overflow-hidden transition-all duration-300 ${
+                      hasAI 
+                        ? result.score >= 80 
+                          ? "border-emerald-300 shadow-md ring-2 ring-emerald-500/5 bg-slate-50/5 hover:-translate-y-0.5" 
+                          : "border-slate-200 hover:border-slate-350 hover:shadow-md hover:-translate-y-0.5"
                         : "border-slate-200 hover:border-slate-350 hover:shadow-md hover:-translate-y-0.5"
-                      : "border-slate-200 hover:border-slate-350 hover:shadow-md hover:-translate-y-0.5"
-                  }`}
-                >
-                  
-                  {/* Top segment for clinical identifiers & phases */}
-                  <div className="p-5 space-y-3.5">
+                    }`}
+                  >
                     
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 bg-[#0F2B5B] text-white text-[9px] font-black rounded uppercase">
-                          {trial.nctId}
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-[#0EA5A0]/10 text-[#0EA5A0] border border-[#0EA5A0]/20 text-[9px] font-extrabold rounded">
-                          {trial.phase}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400">
-                        {trial.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-black text-[#0F2B5B] leading-tight select-text">
-                        {trial.title}
-                      </h3>
-                      <div className="pt-1.5 flex flex-col gap-1 text-[10px] text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[200px]" title={trial.sponsor}>
-                            Sponsor: <strong className="text-slate-600 font-bold">{trial.sponsor}</strong>
+                    {/* Top segment for clinical identifiers & phases */}
+                    <div className="p-5 space-y-3.5">
+                      
+                      <div className="flex items-center justify-between flex-wrap gap-2 select-none">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 bg-[#0F2B5B] text-white text-[9px] font-black rounded uppercase">
+                            {trial.nctId}
                           </span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-[#0EA5A0] shrink-0" />
-                          <span className="truncate max-w-[200px]">{trial.location}</span>
+                          <span className="px-1.5 py-0.5 bg-[#0EA5A0]/10 text-[#0EA5A0] border border-[#0EA5A0]/20 text-[9px] font-extrabold rounded">
+                            {trial.phase}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {trial.status}
                         </span>
                       </div>
-                    </div>
 
-                    {/* Brief description summary */}
-                    <div className="pt-2 border-t border-slate-55/60 text-xs">
-                      <p className="text-slate-650 leading-relaxed font-normal">
-                        {isExpanded 
-                          ? trial.summary 
-                          : trial.summary.length > 140 
-                            ? `${trial.summary.substring(0, 140)}...` 
-                            : trial.summary
-                        }
-                        {trial.summary.length > 140 && (
-                          <button 
-                            onClick={() => toggleSummary(trial.nctId)}
-                            className="ml-1 text-[#0EA5A0] hover:text-[#0F2B5B] font-extrabold inline-flex items-center gap-0.5 transition cursor-pointer"
-                          >
-                            {isExpanded ? "Less" : "Read More"}
-                          </button>
-                        )}
-                      </p>
-                    </div>
-
-                  </div>
-
-                  {/* High Quality AI Match Evaluation Region */}
-                  <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col justify-end gap-3.5">
-                    
-                    {hasAI ? (
-                      <div className="space-y-2.5">
-                        
-                        {/* Interactive Match score and badge */}
-                        <div className="flex items-center justify-between gap-2 bg-white/40 border border-slate-100 p-2.5 rounded-xl">
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide">AI Recommendation</span>
-                            <span className={`px-2 py-0.5 text-[9px] font-black rounded border block inline-block ${scoreInfo?.badgeColor}`}>
-                              {scoreInfo?.badgeText}
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-black text-[#0F2B5B] leading-tight select-text">
+                          {trial.title}
+                        </h3>
+                        <div className="pt-1.5 flex flex-col gap-1 text-[10px] text-slate-500 select-text">
+                          <span className="flex items-center gap-1">
+                            <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[200px]" title={trial.sponsor}>
+                              Sponsor: <strong className="text-slate-600 font-bold">{trial.sponsor}</strong>
                             </span>
-                          </div>
-                          <ScoreDonut score={result.score} />
-                        </div>
-
-                        {/* Recommendation snippet text */}
-                        <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed italic pr-1 select-text">
-                          "{result.reasoning}"
-                        </p>
-
-                        {/* View detailed evaluation side drawer launch */}
-                        <div className="pt-1.5 border-t border-slate-100/50 flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-slate-300 uppercase font-mono tracking-widest">
-                            OPENAI SECURE ANALYST
                           </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-[#0EA5A0] shrink-0" />
+                            <span className="truncate max-w-[200px]">{trial.location}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Brief description summary */}
+                      <div className="pt-2 border-t border-slate-100/80 text-xs">
+                        <p className="text-slate-650 leading-relaxed font-semibold">
+                          {isExpanded 
+                            ? trial.summary 
+                            : trial.summary.length > 140 
+                              ? `${trial.summary.substring(0, 140)}...` 
+                              : trial.summary
+                          }
+                          {trial.summary.length > 140 && (
+                            <button 
+                              onClick={() => toggleSummary(trial.nctId)}
+                              className="ml-1 text-[#0EA5A0] hover:text-[#0F2B5B] font-extrabold inline-flex items-center gap-0.5 transition cursor-pointer"
+                            >
+                              {isExpanded ? "Less" : "Read More"}
+                            </button>
+                          )}
+                        </p>
+                      </div>
+
+                    </div>
+
+                    {/* High Quality AI Match Evaluation Region */}
+                    <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col justify-end gap-3.5">
+                      
+                      {hasAI ? (
+                        <div className="space-y-2.5">
+                          
+                          {/* Interactive Match score and badge */}
+                          <div className="flex items-center justify-between gap-2 bg-white/40 border border-slate-100 p-2.5 rounded-xl">
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide">AI Recommendation</span>
+                              <span className={`px-2 py-0.5 text-[9px] font-black rounded border block inline-block ${scoreInfo?.badgeColor}`}>
+                                {scoreInfo?.badgeText}
+                              </span>
+                            </div>
+                            <ScoreDonut score={result.score} />
+                          </div>
+
+                          {/* Recommendation snippet text */}
+                          <p className="text-[11px] text-slate-605 line-clamp-2 leading-relaxed italic pr-1 select-text">
+                            "{result.reasoning}"
+                          </p>
+
+                          {/* View detailed evaluation side drawer launch */}
+                          <div className="pt-1.5 border-t border-slate-100/50 flex items-center justify-between select-none">
+                            <span className="text-[8px] font-bold text-slate-405 uppercase font-mono tracking-widest">
+                              OPENAI SECURE ANALYST
+                            </span>
+                            <button
+                              onClick={() => setSelectedTrialForDetail(trial)}
+                              className="text-xs font-extrabold text-[#0EA5A0] hover:text-[#0F2B5B] inline-flex items-center gap-0.5 transition cursor-pointer font-sans"
+                            >
+                              View Analysis
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                        </div>
+                      ) : (
+                        <div className="py-5 text-center flex flex-col items-center justify-center space-y-2 select-none">
+                          <HelpCircle className="w-7 h-7 text-slate-300" />
+                          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">Match Rating Pending</span>
+                          
                           <button
-                            onClick={() => setSelectedTrialForDetail(trial)}
-                            className="text-xs font-extrabold text-[#0EA5A0] hover:text-[#0F2B5B] inline-flex items-center gap-0.5 transition cursor-pointer font-sans"
+                            onClick={() => handleAnalyzeSingleTrial(trial)}
+                            disabled={analyzingTrialId !== null}
+                            className="p-1 px-3 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-[11px] font-bold rounded-lg text-slate-705 transition flex items-center gap-1.5 cursor-pointer"
                           >
-                            View Analysis
-                            <ChevronRight className="w-4 h-4" />
+                            <Brain className={`w-3.5 h-3.5 text-blue-500 ${analyzingTrialId === trial.nctId ? "animate-spin" : ""}`} />
+                            {analyzingTrialId === trial.nctId ? "Evaluating..." : "Analyze Match"}
                           </button>
                         </div>
+                      )}
 
-                      </div>
-                    ) : (
-                      <div className="py-5 text-center flex flex-col items-center justify-center space-y-2 select-none">
-                        <HelpCircle className="w-7 h-7 text-slate-300" />
-                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">Match Rating Pending</span>
-                        
-                        <button
-                          onClick={() => handleAnalyzeSingleTrial(trial)}
-                          disabled={analyzingTrialId !== null}
-                          className="p-1 px-3 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-[11px] font-bold rounded-lg text-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Brain className={`w-3.5 h-3.5 text-blue-500 ${analyzingTrialId === trial.nctId ? "animate-spin" : ""}`} />
-                          {analyzingTrialId === trial.nctId ? "Evaluating..." : "Analyze Match"}
-                        </button>
-                      </div>
-                    )}
+                    </div>
 
                   </div>
+                );
+              })}
+            </div>
 
-                </div>
-              );
-            })}
           </div>
 
         </div>
       )}
 
-      {/* 4. Elegant RHS Drawer Panel for "View Analysis" details */}
+      {/* 4. Highly Polished RHS Slide-Over Panel for "View Analysis" details */}
       {selectedTrialForDetail && (() => {
         const result = matchResults[selectedTrialForDetail.nctId];
         const info = getScoreInfo(result?.score || 0);
@@ -786,113 +860,206 @@ export const PatientTrialsPage: React.FC = () => {
         return (
           <div className="fixed inset-0 z-50 overflow-hidden flex animate-fade-in select-text">
             
-            {/* Soft dark background mask */}
+            {/* Custom Dynamic Print Stylesheet Tag inside code to guarantee window.print isolates this card perfectly */}
+            <style>{`
+              @media print {
+                html, body {
+                  background: white !important;
+                  color: black !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                body * {
+                  visibility: hidden !important;
+                }
+                #print-analysis-content, #print-analysis-content * {
+                  visibility: visible !important;
+                }
+                #print-analysis-content {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                  overflow: visible !important;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            `}</style>
+
+            {/* Backdrop Dimmer Overlay */}
             <div 
               onClick={() => setSelectedTrialForDetail(null)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs cursor-pointer"
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs cursor-pointer"
             />
 
-            {/* Panel canvas container */}
-            <div className="absolute inset-y-0 right-0 max-w-lg w-full bg-white shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-in relative select-text">
+            {/* RHS Panel Frame with full mobile scroll support */}
+            <div 
+              id="print-analysis-content"
+              className="absolute inset-y-0 right-0 max-w-2xl w-full bg-white shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-in relative select-text"
+            >
               
-              <div>
-                {/* Header widget */}
-                <div className="p-6 bg-[#0F2B5B] text-white space-y-1.5 shadow-sm relative">
-                  <button 
-                    onClick={() => setSelectedTrialForDetail(null)}
-                    className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                  <span className="text-[11px] font-black tracking-widest text-[#0EA5A0] uppercase font-mono">
-                    {selectedTrialForDetail.nctId} MATCH ANALYSIS
-                  </span>
-                  <h3 className="text-base font-extrabold pr-8 leading-snug">
-                    {selectedTrialForDetail.title}
-                  </h3>
-                </div>
-
-                {/* Body Content info */}
-                <div className="p-6 space-y-6 select-text text-slate-700">
-                  
-                  {/* Score & recommendation snapshot block */}
-                  <div className="flex items-center gap-4 bg-slate-50 border border-slate-150 p-4 rounded-2xl select-none">
-                    <ScoreDonut score={result.score} />
-                    <div className="space-y-1.5">
-                      <strong className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">AI Compatibility Verdict</strong>
-                      <span className={`px-2 py-0.5 text-[10px] font-black rounded border block inline-block ${info.badgeColor}`}>
-                        {info.badgeText}
+              <div className="p-6 md:p-8 space-y-6">
+                
+                {/* Header panel details */}
+                <div className="bg-[#0F2B5B] text-white p-6 rounded-2xl relative shadow-md flex justify-between items-start gap-4">
+                  <div className="space-y-2 flex-1 pt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 bg-sky-500 text-white text-[10px] font-black tracking-wider rounded uppercase font-mono">
+                        {selectedTrialForDetail.nctId}
                       </span>
+                      <span className="text-xs font-semibold text-sky-200 uppercase tracking-wider font-mono">
+                        AI Compatibility Scorecard
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-lg font-extrabold pr-6 leading-snug tracking-tight">
+                      {selectedTrialForDetail.title}
+                    </h3>
+
+                    <div className="pt-1.5">
+                      <a 
+                        href={`https://clinicaltrials.gov/study/${selectedTrialForDetail.nctId}`}
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-xs font-bold text-[#0EA5A0] hover:text-sky-305 underline inline-flex items-center gap-1 transition-colors no-print"
+                      >
+                        View on ClinicalTrials.gov
+                        <ChevronRight className="w-4 h-4" />
+                      </a>
                     </div>
                   </div>
 
-                  {/* Fully formatted clinical expert reasoning */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-black text-[#0F2B5B] uppercase tracking-wider flex items-center gap-1.5">
-                      <Brain className="w-4 h-4 text-sky-500" />
-                      Analytical Rationale
-                    </h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed italic bg-indigo-50/20 p-4 border-l-4 border-[#0F2B5B] rounded-r-xl">
-                      "{result.reasoning}"
-                    </p>
+                  {/* Large Score Donut Chart placed top-right */}
+                  <div className="shrink-0 bg-white p-1 rounded-full shadow-md">
+                    <ScoreDonut score={result?.score || 0} large />
                   </div>
 
-                  {/* Met eligibility criteria parameters list */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-black text-[#0F2B5B] uppercase tracking-wider flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      Met Criteria (Inclusions)
-                    </h4>
-                    
-                    {result.inclusions.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic pl-5">No explicit inclusions identified by model.</p>
-                    ) : (
-                      <ul className="space-y-2 pl-1 select-text">
-                        {result.inclusions.map((m, idx) => (
-                          <li key={idx} className="flex items-start gap-2.5 text-slate-650 text-xs leading-normal">
-                            <span className="p-0.5 rounded-full bg-emerald-50 text-emerald-600 mt-0.5 shrink-0 border border-emerald-100">
-                              <Check className="w-3 h-3" strokeWidth={3} />
-                            </span>
-                            <span>{m}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Failed/unknown eligibility exclusions constraint criteria list */}
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-black text-[#0F2B5B] uppercase tracking-wider flex items-center gap-1.5">
-                      <XCircle className="w-4 h-4 text-rose-500" />
-                      Unmet or Unverified Criteria (Exclusions / Risks)
-                    </h4>
-                    
-                    {result.exclusions.length === 0 ? (
-                      <p className="text-xs text-emerald-600 italic font-semibold pl-5 flex items-center gap-1.5">
-                        <Check className="w-4 h-4" /> No exclusion conflicts detected.
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 pl-1 select-text">
-                        {result.exclusions.map((u, idx) => (
-                          <li key={idx} className="flex items-start gap-2.5 text-slate-650 text-xs leading-normal">
-                            <span className="p-0.5 rounded-full bg-rose-50 text-rose-500 mt-0.5 shrink-0 border border-rose-100">
-                              <X className="w-3 h-3" strokeWidth={3} />
-                            </span>
-                            <span>{u}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
+                  <button 
+                    onClick={() => setSelectedTrialForDetail(null)}
+                    className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition cursor-pointer no-print"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
+
+                {/* Section "Why this could be a match": styled blockquote */}
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-black text-[#0F2B5B] uppercase tracking-wider flex items-center gap-1.5">
+                    <Brain className="w-4 h-4 text-indigo-505" />
+                    Why this could be a match
+                  </h4>
+                  <blockquote className="text-xs text-slate-700 font-medium leading-relaxed italic bg-indigo-50/20 p-4 border-l-4 border-[#0EA5A0] rounded-r-xl select-text">
+                    "{result?.reasoning || 'Diagnostic parameters computed and summarized below.'}"
+                  </blockquote>
+                </div>
+
+                {/* Section "Criteria met" (green) with checkbox status */}
+                <div className="space-y-3 pt-1">
+                  <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-pulse" />
+                    Criteria Met (Inclusions)
+                  </h4>
+                  {(!result || !result.inclusions || result.inclusions.length === 0) ? (
+                    <p className="text-xs text-slate-400 italic pl-5">No explicit inclusions verified by OpenAI analytics module.</p>
+                  ) : (
+                    <div className="space-y-2 pl-1 select-text">
+                      {result.inclusions.map((m, idx) => (
+                        <div key={idx} className="flex items-start gap-3 text-slate-700 text-xs py-1.5 border-b border-slate-50 leading-normal">
+                          <span className="p-0.5 rounded-full bg-emerald-50 text-emerald-600 shrink-0 border border-emerald-110 mt-0.5">
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          </span>
+                          <span>{m}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section "Criteria not met or unknown" (red X marks) */}
+                <div className="space-y-3 pt-1">
+                  <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                    Criteria Not Met or Unknown (Exclusions / Risks)
+                  </h4>
+                  {(!result || !result.exclusions || result.exclusions.length === 0) ? (
+                    <p className="text-xs text-emerald-600 italic font-semibold pl-5 flex items-center gap-1.5">
+                      <Check className="w-4 h-4" /> No exclusion risk factors detected for this profile.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 pl-1 select-text">
+                      {result.exclusions.map((u, idx) => (
+                        <div key={idx} className="flex items-start gap-3 text-slate-700 text-xs py-1.5 border-b border-slate-50 leading-normal">
+                          <span className="p-0.5 rounded-full bg-rose-50 text-rose-500 shrink-0 border border-rose-110 mt-0.5">
+                            <X className="w-3.5 h-3.5" strokeWidth={3} />
+                          </span>
+                          <span>{u}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section "Trial details" table layout */}
+                <div className="space-y-3.5 pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-black text-[#0F2B5B] uppercase tracking-wider flex items-center gap-1.5">
+                    <Info className="w-4 h-4 text-slate-400" />
+                    National Registry Study Protocols
+                  </h4>
+                  
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 grid grid-cols-2 gap-4 text-xs font-semibold">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Registry Status</span>
+                      <span className="font-extrabold text-[#0F2B5B] mt-0.5 block">{selectedTrialForDetail.status}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Clinical Phase</span>
+                      <span className="font-extrabold text-[#0F2B5B] mt-0.5 block">{selectedTrialForDetail.phase}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Lead Sponsor</span>
+                      <span className="font-extrabold text-slate-705 mt-0.5 block truncate" title={selectedTrialForDetail.sponsor}>
+                        {selectedTrialForDetail.sponsor}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Sites / Location</span>
+                      <span className="font-extrabold text-slate-705 mt-0.5 block truncate" title={selectedTrialForDetail.location}>
+                        {selectedTrialForDetail.location}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Age Limits</span>
+                      <span className="font-extrabold text-[#0F2B5B] mt-0.5 block">
+                        {selectedTrialForDetail.minimumAge} to {selectedTrialForDetail.maximumAge}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-mono">Enrolled Gender Bias</span>
+                      <span className="font-extrabold text-[#0F2B5B] mt-0.5 block uppercase">{selectedTrialForDetail.sex}</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Close controls at bottom footer */}
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-end select-none">
+              {/* Side over footer controls with print trigger */}
+              <div className="p-6 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between no-print select-none">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 border border-slate-250 hover:border-slate-350 bg-white text-slate-700 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4" />
+                  Export to PDF
+                </button>
+                
                 <button
                   onClick={() => setSelectedTrialForDetail(null)}
-                  className="px-4 py-2 bg-[#0F2B5B] text-white hover:bg-slate-900 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                  className="px-5 py-2 bg-[#0F2B5B] text-white hover:bg-slate-900 font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
                 >
                   Close Evaluation
                 </button>
