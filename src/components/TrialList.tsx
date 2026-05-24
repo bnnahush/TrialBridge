@@ -67,6 +67,7 @@ export const TrialList: React.FC<Props> = ({ onSelectTrialForFeasibility }) => {
   // Create state for registering trial template
   const [registeringIndex, setRegisteringIndex] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [deletingTrialId, setDeletingTrialId] = useState<string | null>(null);
   
   // Custom new Trial simple form inputs
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
@@ -248,6 +249,25 @@ export const TrialList: React.FC<Props> = ({ onSelectTrialForFeasibility }) => {
     }
   };
 
+  const handleDeleteTrial = async (id: string, name: string) => {
+    setLoading(true);
+    setSuccessMsg(null);
+    setError(null);
+    try {
+      await fhirClient.request(`ResearchStudy/${id}`, {
+        method: "DELETE",
+      });
+      setSuccessMsg(`Successfully deleted ResearchStudy "${name}" with ID: ${id}`);
+      setDeletingTrialId(null);
+      await loadTrialsFromFHIR();
+    } catch (err: any) {
+      console.error("Failed to delete study:", err);
+      setError(`Failed to delete Study: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div id="trial-registry-section" className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -406,10 +426,44 @@ export const TrialList: React.FC<Props> = ({ onSelectTrialForFeasibility }) => {
                         {trial.phase}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                      <span className="font-semibold text-slate-500">{trial.sponsor}</span>
-                      <span>•</span>
-                      <span className="font-mono text-[10px]">FHIR ID: {trial.id}</span>
+                    <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-500">{trial.sponsor}</span>
+                        <span>•</span>
+                        <span className="font-mono text-[10px]">FHIR ID: {trial.id}</span>
+                      </div>
+                      {trial.id !== "unknown" && (
+                        deletingTrialId === trial.id ? (
+                          <div className="flex items-center gap-2 bg-rose-50 border border-rose-100 rounded p-1 px-2">
+                            <span className="text-rose-800 text-[10px] font-bold uppercase font-mono">Confirm Delete?</span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTrial(trial.id, trial.title)}
+                              className="text-rose-600 hover:text-rose-800 font-black text-[10px] uppercase font-mono cursor-pointer"
+                            >
+                              Yes
+                            </button>
+                            <span className="text-rose-200">|</span>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingTrialId(null)}
+                              className="text-slate-500 hover:text-slate-700 font-bold text-[10px] uppercase font-mono cursor-pointer"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingTrialId(trial.id)}
+                            title="Delete clinical trial from FHIR server"
+                            className="p-1 px-1.5 text-slate-405 hover:text-rose-600 hover:bg-rose-50/50 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-[10px] uppercase font-bold font-mono">Delete</span>
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
 

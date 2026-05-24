@@ -222,8 +222,8 @@ function AppContent() {
         <main className="flex-1 overflow-y-auto px-4 py-8 md:p-8">
           <div className="max-w-7xl mx-auto">
             <Routes>
-              {/* Default Redirect from / to /patients */}
-              <Route path="/" element={<Navigate to="/patients" replace />} />
+              {/* Default Redirect from / to /dashboard */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Patient Core Routes */}
               <Route path="/patients" element={<PatientsPage />} />
