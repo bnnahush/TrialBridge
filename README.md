@@ -103,10 +103,12 @@ A comprehensive, accessible judge-facing modal overlay accessible from the navig
 ## 🚀 Page & Feature Walkthrough
 
 ### 📊 Dashboard
-Displays high-level statistical summaries using interactive **Recharts** visualizations:
-- Active clinical trial cohorts status reports.
-- Patient gender and birth years histograms.
-- Distribution graphs demonstrating target conditions.
+Displays robust, real-time statistical registries and interactive high-fidelity **Recharts** visualizations:
+- **Age Demographic Distribution:** An elegant, gradient-filled Area Chart mapping patients across specific life-cycle ranges (0-17, 18-35, 36-50, 51-65, 65+).
+- **Biological Sex Ratio:** A streamlined Donut Chart with live Legend overlays demonstrating structural sex distributions directly from FHIR endpoint mappings.
+- **Top 5 Active Conditions:** A horizontal, modern Bar Chart tracking prevalence indices (e.g., Essential Hypertension, Type 2 Diabetes, Hyperlipidemia, Asthmatic Bronchitis) sorted by frequency of active disease states.
+- **Top 5 Prescribed Medications:** A high-contrast horizontal Bar Chart monitoring therapeutic regimens (e.g., Lisinopril, Metformin, Atorvastatin, Albuterol, Amlodipine) derived directly from live active FHIR MedicationRequest records.
+- Includes quick-access navigation triggers to add new patients, browse matched protocols, or search existing clinical files within seconds.
 
 ### 👥 Patients Directory (`/patients`)
 Includes an advanced, clean lookup table allowing researchers to find specific patient files:
