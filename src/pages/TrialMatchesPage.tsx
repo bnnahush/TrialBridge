@@ -2,14 +2,15 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { TrialList } from "../components/TrialList";
 import { QueryBuilder } from "../components/QueryBuilder";
+import { CohortMatcher } from "../components/CohortMatcher";
 import { TrialCriteria } from "../types";
 import { useApp } from "../context/AppContext";
-import { Database, Layers, HelpCircle, ShieldCheck } from "lucide-react";
+import { Database, Layers, HelpCircle, ShieldCheck, Users } from "lucide-react";
 
 export const TrialMatchesPage: React.FC = () => {
   const navigate = useNavigate();
   const { setSuccess } = useApp();
-  const [activeTab, setActiveTab] = useState<"protocols" | "matcher">("protocols");
+  const [activeTab, setActiveTab] = useState<"protocols" | "matcher" | "cohortMatch">("protocols");
   
   // Handlers for trial criteria selections
   const handleSelectTrialForFeasibility = (criteria: TrialCriteria[], title: string) => {
@@ -56,6 +57,18 @@ export const TrialMatchesPage: React.FC = () => {
               <Layers className="w-4 h-4" /> Ad-Hoc Cohort Matcher
             </span>
           </button>
+          <button
+            onClick={() => setActiveTab("cohortMatch")}
+            className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition focus:outline-none cursor-pointer ${
+              activeTab === "cohortMatch"
+                ? "border-teal-accent text-teal-accent"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <Users className="w-4 h-4" /> Cohort Trial Matcher
+            </span>
+          </button>
         </div>
       </div>
 
@@ -73,8 +86,10 @@ export const TrialMatchesPage: React.FC = () => {
             </div>
             <TrialList onSelectTrialForFeasibility={handleSelectTrialForFeasibility} />
           </div>
-        ) : (
+        ) : activeTab === "matcher" ? (
           <QueryBuilder />
+        ) : (
+          <CohortMatcher />
         )}
       </div>
     </div>
